@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/KafkaProducerUtil.h
+iostream
+-
+map
+-
+vector
+-
+string
+-
+stdint.h
+-
+
+/home/centos7/Crawler2QBus/KafkaClient/src/KafkaProducerUtil.cpp
+string.h
+-
+ctype.h
+-
+KafkaProducerUtil.h
+/home/centos7/Crawler2QBus/KafkaClient/src/KafkaProducerUtil.h
+
