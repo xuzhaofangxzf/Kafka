@@ -9,13 +9,14 @@ KafkaProducer::KafkaProducer(const std::string& brokers, const std::string& topi
     m_config = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
     if(m_config == NULL)
     {
-        std::cout << "Create RdKafka Conf failed." << std::endl;
+        log (LOG_ERROR, "Create RdKafka Conf failed!");
+        // std::cout << "Create RdKafka Conf failed." << std::endl;
     }
     // 创建Topic Conf对象
     m_topicConfig = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
     if(m_topicConfig == NULL)
     {
-        std::cout << "Create RdKafka Topic Conf failed." << std::endl;
+        log (LOG_ERROR, "Create RdKafka Topic Conf failed!");
     }
     // 设置Broker属性
     RdKafka::Conf::ConfResult errCode;
@@ -24,14 +25,14 @@ KafkaProducer::KafkaProducer(const std::string& brokers, const std::string& topi
     errCode = m_config->set("dr_cb", m_dr_cb, errorStr);
     if(errCode != RdKafka::Conf::CONF_OK)
     {
-        std::cout << "Conf set failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Conf set dr_cb failed:%s", errorStr.c_str());
     }
-    m_event_cb = new ProducerEventCb;
-    errCode = m_config->set("event_cb", m_event_cb, errorStr);
-    if(errCode != RdKafka::Conf::CONF_OK)
-    {
-        std::cout << "Conf set failed:" << errorStr << std::endl;
-    }
+    // m_event_cb = new ProducerEventCb;
+    // errCode = m_config->set("event_cb", m_event_cb, errorStr);
+    // if(errCode != RdKafka::Conf::CONF_OK)
+    // {
+    //     log (LOG_ERROR, "Conf set event_cb failed:%s", errorStr.c_str());
+    // }
 
     // m_partitioner_cb = new HashPartitionerCb;
     // errCode = m_topicConfig->set("partitioner_cb", m_partitioner_cb, errorStr);
@@ -43,30 +44,30 @@ KafkaProducer::KafkaProducer(const std::string& brokers, const std::string& topi
     errCode = m_config->set("statistics.interval.ms", "10000", errorStr);
     if(errCode != RdKafka::Conf::CONF_OK)
     {
-        std::cout << "Conf set failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Conf set statistics.interval.ms failed:%s", errorStr.c_str());
     }
 
     errCode = m_config->set("message.max.bytes", "10240000", errorStr);
     if(errCode != RdKafka::Conf::CONF_OK)
     {
-        std::cout << "Conf set failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Conf set message.max.bytes failed:%s", errorStr.c_str());
     }
     errCode = m_config->set("bootstrap.servers", m_brokers, errorStr);
     if(errCode != RdKafka::Conf::CONF_OK)
     {
-        std::cout << "Conf set failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Conf set bootstrap.servers failed:%s", errorStr.c_str());
     }
     // 创建Producer
     m_producer = RdKafka::Producer::create(m_config, errorStr);
     if(m_producer == NULL)
     {
-        std::cout << "Create Producer failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Create Producer failed:%s", errorStr.c_str());
     }
     // 创建Topic对象
     m_topic = RdKafka::Topic::create(m_producer, m_topicStr, m_topicConfig, errorStr);
     if(m_topic == NULL)
     {
-        std::cout << "Create Topic failed:" << errorStr << std::endl;
+        log (LOG_ERROR, "Create Topic failed:%s", errorStr.c_str());
     }
 }
 
@@ -80,7 +81,7 @@ void KafkaProducer::pushMessage(const std::string& str, const std::string& key)
     m_producer->poll(0);
     if (errorCode != RdKafka::ERR_NO_ERROR)
     {
-        std::cerr << "Produce failed: " << RdKafka::err2str(errorCode) << std::endl;
+        log (LOG_ERROR, "Produce failed::%s", RdKafka::err2str(errorCode).c_str());
         if(errorCode ==  RdKafka::ERR__QUEUE_FULL)
         {
             m_producer->poll(1000);
@@ -88,7 +89,7 @@ void KafkaProducer::pushMessage(const std::string& str, const std::string& key)
     }
     else
     {
-        std::cout << "Produce success!" << std::endl;
+        log (LOG_ERROR, "Produce success!");
     }
     
 }
@@ -105,6 +106,6 @@ KafkaProducer::~KafkaProducer()
     delete m_topic;
     delete m_producer;
     delete m_dr_cb;
-    delete m_event_cb;
+    // delete m_event_cb;
     delete m_partitioner_cb;
 }

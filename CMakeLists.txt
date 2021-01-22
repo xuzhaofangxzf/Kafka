@@ -4,7 +4,7 @@ project(KafkaProducer)    # 工程名 CppTemplate
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -g ${CMAKE_CXX_FLAGS}")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(LINK_DIR  "/usr/lib64/")
