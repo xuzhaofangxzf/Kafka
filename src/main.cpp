@@ -2,17 +2,21 @@
 #include <vector>
 #include <string>
 #include <signal.h>
-#include <regex>
+// #include <regex>
+#include <sstream>
 #include <map>
 #include <string.h>
+#include <chrono>
 #include "KafkaProducer.h"
 #include "KafkaProducerLog.h"
+#include "CJsonObject.h"
 using namespace std;
+using namespace chrono;
 #define DEFALUT_LOG "../log/kafka.log"
 
-map<string,string> defaultKafka = {
-    {"common-spider-data", "10.173.194.22:39092"},
-    {"common-spider-epoch","10.173.194.22:39092"}};
+// map<string,string> defaultKafka = {
+//     {"common-spider-data", "10.173.194.22:39092"},
+//     {"common-spider-epoch","10.173.194.22:39092"}};
 map<string, KafkaProducer*> specialClinet; //<topic, KafkaProducer>
 bool g_isStop = false;
 
@@ -21,8 +25,8 @@ void sigStop(int signo)
     log (LOG_WARNING, "receive signal %d, exit !", signo);
     g_isStop = true;
 }
-
-std::string getCategory(const std::string &strIn, const char delim, int loc = 3)
+#if 0
+std::string getKeyValue(const std::string &strIn, const char delim, int loc = 1)
 {
     if (strIn.empty())
     {
@@ -42,20 +46,20 @@ std::string getCategory(const std::string &strIn, const char delim, int loc = 3)
     }
     return res;
 }
+#endif
+void split(const std::string& s, char delimiter, std::vector<std::string>& tokens)
+{
+   std::string token;
+   std::istringstream tokenStream(s);
+   while (std::getline(tokenStream, token, delimiter))
+   {
+      tokens.push_back(token);
+   }
+   return;
+}
+
 int main()
 {
-    // // 创建Producer
-    // KafkaProducer producer("10.173.194.22:39092	", "special-spider-epoch", 0);
-    // for(int i = 0; i < 10; i++)
-    // {
-    //     char msg[64] = {0};
-    //     sprintf(msg, "%s%4d", "Hello RdKafka", i);
-    //     // 生产消息
-    //     char key[8] = {0};
-    //     sprintf(key, "%d", i);
-    //     producer.pushMessage(msg, key);
-    // }
-    // RdKafka::wait_destroyed(5000);
     log_init(DEFALUT_LOG, LOG_YEAR_DAY_HOUR, LOG_NOTICE);
     std::string inputStream;
     struct sigaction sa;
@@ -63,17 +67,19 @@ int main()
     sa.sa_handler = sigStop;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
-    regex topicPattern("\"opts\":.*?topic:(.*?);");
-    regex BrokerlistPattern("\"opts\":.*?broken-list:(.*?);");
-    smatch result;
-    string topic;
-    string brokerlist;
-    std::string strCatogory;
+    // regex topicPattern("\"opts\":.*topic:(.*?);");
+    // regex BrokerlistPattern("\"opts\":.*broker_list:(.*?);");
+    // regex topicPattern("topic:(.*?);");
+    // regex BrokerlistPattern("broker_list:(.*?);");
+    // smatch result;
+
+
     KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
 
 
     size_t pos = 0;
+    auto start = steady_clock::now();
     while(!g_isStop && getline(std::cin, inputStream))
     {
         if (inputStream.empty())
@@ -89,33 +95,54 @@ int main()
             continue;
         }
 
-        if ((pos = inputStream.find("output\tscribe")) != std::string::npos)
-        {
-            std::string strTmp = inputStream.substr(pos); //获取从output\tscribe到最后的子串
-            strCatogory = getCategory(strTmp, '\t');
-            if(strCatogory == "")
-            {
-                continue;
-            }
+        if ((pos = inputStream.find("output\tscribe\tcommon_spider_data")) != std::string::npos) {
             try
             {
-                inputStream = inputStream.substr(inputStream.find(strCatogory) + strCatogory.size() + sizeof("\t"));
+                inputStream = inputStream.substr(pos + sizeof("output\tscribe\tcommon_spider_data\t") - 1);
             }
             catch(...)
             {
-                log (LOG_WARNING, "file:%s\tline:%d\tinputdata error, category=%s",
+                log (LOG_WARNING, "file:%s\tline:%d\tinputdata error\t%s",
                 __FILE__,
                 __LINE__,
-                strCatogory.c_str());
+                inputStream.c_str());
                 continue;
             }
-            //先判断是否有topic和brokerlist
-            if (regex_search(inputStream, result, topicPattern))
+            neb::CJsonObject oJson(inputStream);
+            std::string strTraversingKey;
+            std::string strTraversingValue;
+            while(oJson.GetKey(strTraversingKey))
             {
-                topic = result.str(1);
-                if (regex_search(inputStream, result, BrokerlistPattern))
+                if (strTraversingKey == "opts")
                 {
-                    brokerlist = result.str(1);
+                    oJson.Get(strTraversingKey, strTraversingValue);
+                    break;
+                }
+            }
+            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broker_list") == std::string::npos) {
+                dataProducer->pushMessage(inputStream, "");
+                continue;
+            }
+            string topic;
+            string brokerlist;
+            std::vector<std::string> tokens;
+            bool isSpecal = false;
+            start = steady_clock::now();
+            split(strTraversingValue, ';', tokens);         
+            for (int i = 0; i < tokens.size(); ++i) {
+                // std::cout << "tokens_" << i  << " " << tokens[i] << std::endl;
+                std::vector<std::string> token_list;
+                split(tokens[i], ':', token_list);
+                if (token_list.size() < 2) continue;
+                if (token_list[0] == "topic") {
+                    topic = token_list[1];
+                }
+                if (token_list[0] == "broker_list") {
+                    brokerlist = token_list[1];
+                }
+                if (!topic.empty() && !brokerlist.empty()) {
+                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
+                    
                     if ((specialClinet.find(topic)) == specialClinet.end())
                     {
                         KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
@@ -126,25 +153,36 @@ int main()
                     {
                         specialClinet[topic]->pushMessage(inputStream, "");
                     }
-                    continue; //已经处理过数据了，不需要再处理了
+                    isSpecal = true;
+                    break;
                 }
             }
-            if (strCatogory == "common_spider_log")
-            {
-                logProducer->pushMessage(inputStream, "");
+            if (isSpecal) {
+                continue;
             }
-            else if(strCatogory == "common_spider_data")
-            {
-                dataProducer->pushMessage(inputStream, "");
-            }
+            dataProducer->pushMessage(inputStream, "");
         }
-        else
-        {
-            log (LOG_WARNING, "==================error data! =====================");
-            // std::cout << "==================error data! =====================" << std::endl;
+        else if ((pos = inputStream.find("output\tscribe\tcommon_spider_log")) != std::string::npos) {
+            try
+            {
+                inputStream = inputStream.substr(pos + sizeof("output\tscribe\tcommon_spider_log\t") - 1);
+            }
+            catch(...)
+            {
+                log (LOG_WARNING, "file:%s\tline:%d\tinputdata error\t%s",
+                __FILE__,
+                __LINE__,
+                inputStream.c_str());
+                continue;
+            }
+            logProducer->pushMessage(inputStream, "");
         }
 
     }
+
+    // auto end = steady_clock::now();
+    // auto duration = duration_cast<microseconds>(end - start);
+    // cout <<  "reg1:"  << double(duration.count()) * microseconds::period::num / microseconds::period::den << "s" << endl;
     RdKafka::wait_destroyed(5000);
     delete dataProducer;
     delete logProducer;

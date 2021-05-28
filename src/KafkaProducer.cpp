@@ -107,5 +107,5 @@ KafkaProducer::~KafkaProducer()
     delete m_producer;
     delete m_dr_cb;
     // delete m_event_cb;
-    delete m_partitioner_cb;
+    // delete m_partitioner_cb;
 }
