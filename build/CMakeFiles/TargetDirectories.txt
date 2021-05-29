@@ -1,1 +1,0 @@
-/home/centos7/Crawler2QBus/KafkaClient/build/CMakeFiles/KafkaProducer.dir

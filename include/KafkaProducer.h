@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 #include "librdkafka/rdkafkacpp.h"
-#include "KafkaProducerLog.h"
+#include "rlog.h"
 class ProducerDeliveryReportCb : public RdKafka::DeliveryReportCb
 {
 public:

@@ -1,1 +1,0 @@
-g++   -std=c++11     CMakeFiles/KafkaProducer.dir/src/KafkaProducer.cpp.o CMakeFiles/KafkaProducer.dir/src/KafkaProducerLog.cpp.o CMakeFiles/KafkaProducer.dir/src/KafkaProducerUtil.cpp.o CMakeFiles/KafkaProducer.dir/src/main.cpp.o  -o ../bin/KafkaProducer -rdynamic -lrdkafka++ 

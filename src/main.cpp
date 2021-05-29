@@ -8,11 +8,11 @@
 #include <string.h>
 #include <chrono>
 #include "KafkaProducer.h"
-#include "KafkaProducerLog.h"
+#include "rlog.h"
 #include "CJsonObject.h"
 using namespace std;
 using namespace chrono;
-#define DEFALUT_LOG "../log/kafka.log"
+#define DEFALUT_LOG "../log/"
 
 // map<string,string> defaultKafka = {
 //     {"common-spider-data", "10.173.194.22:39092"},
@@ -22,7 +22,7 @@ bool g_isStop = false;
 
 void sigStop(int signo)
 {
-    log (LOG_WARNING, "receive signal %d, exit !", signo);
+    LOG_ERROR("receive signal %d, exit !", signo);
     g_isStop = true;
 }
 #if 0
@@ -60,7 +60,7 @@ void split(const std::string& s, char delimiter, std::vector<std::string>& token
 
 int main()
 {
-    log_init(DEFALUT_LOG, LOG_YEAR_DAY_HOUR, LOG_NOTICE);
+    LOG_INIT(DEFALUT_LOG, "kafka", INFO);
     std::string inputStream;
     struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
@@ -102,7 +102,7 @@ int main()
             }
             catch(...)
             {
-                log (LOG_WARNING, "file:%s\tline:%d\tinputdata error\t%s",
+                LOG_ERROR("file:%s\tline:%d\tinputdata error\t%s",
                 __FILE__,
                 __LINE__,
                 inputStream.c_str());
@@ -137,8 +137,9 @@ int main()
                 if (token_list[0] == "topic") {
                     topic = token_list[1];
                 }
+                if (token_list.size() < 3) continue;
                 if (token_list[0] == "broker_list") {
-                    brokerlist = token_list[1];
+                    brokerlist = token_list[1] + ":" + token_list[2];
                 }
                 if (!topic.empty() && !brokerlist.empty()) {
                     // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
@@ -169,7 +170,7 @@ int main()
             }
             catch(...)
             {
-                log (LOG_WARNING, "file:%s\tline:%d\tinputdata error\t%s",
+                LOG_ERROR("file:%s\tline:%d\tinputdata error\t%s",
                 __FILE__,
                 __LINE__,
                 inputStream.c_str());
