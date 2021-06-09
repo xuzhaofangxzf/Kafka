@@ -119,7 +119,7 @@ int main()
                     break;
                 }
             }
-            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broker_list") == std::string::npos) {
+            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broken-list") == std::string::npos) {
                 dataProducer->pushMessage(inputStream, "");
                 continue;
             }
@@ -138,7 +138,7 @@ int main()
                     topic = token_list[1];
                 }
                 if (token_list.size() < 3) continue;
-                if (token_list[0] == "broker_list") {
+                if (token_list[0] == "broken-list") {
                     brokerlist = token_list[1] + ":" + token_list[2];
                 }
                 if (!topic.empty() && !brokerlist.empty()) {
