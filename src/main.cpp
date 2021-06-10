@@ -11,13 +11,9 @@
 #include "rlog.h"
 #include "CJsonObject.h"
 using namespace std;
-using namespace chrono;
+// using namespace chrono;
 #define DEFALUT_LOG "../log/"
 
-// map<string,string> defaultKafka = {
-//     {"common-spider-data", "10.173.194.22:39092"},
-//     {"common-spider-epoch","10.173.194.22:39092"}};
-map<string, KafkaProducer*> specialClinet; //<topic, KafkaProducer>
 bool g_isStop = false;
 
 void sigStop(int signo)
@@ -46,7 +42,7 @@ std::string getKeyValue(const std::string &strIn, const char delim, int loc = 1)
     }
     return res;
 }
-#endif
+
 void split(const std::string& s, char delimiter, std::vector<std::string>& tokens)
 {
    std::string token;
@@ -57,7 +53,7 @@ void split(const std::string& s, char delimiter, std::vector<std::string>& token
    }
    return;
 }
-
+#endif
 int main()
 {
     LOG_INIT(DEFALUT_LOG, "kafka", INFO);
@@ -67,19 +63,12 @@ int main()
     sa.sa_handler = sigStop;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
-    // regex topicPattern("\"opts\":.*topic:(.*?);");
-    // regex BrokerlistPattern("\"opts\":.*broker_list:(.*?);");
-    // regex topicPattern("topic:(.*?);");
-    // regex BrokerlistPattern("broker_list:(.*?);");
-    // smatch result;
-
-
-    KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
+    KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "spider_common_inccrawler_data", 0);
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
 
 
     size_t pos = 0;
-    auto start = steady_clock::now();
+    // auto start = steady_clock::now();
     while(!g_isStop && getline(std::cin, inputStream))
     {
         if (inputStream.empty())
@@ -108,59 +97,6 @@ int main()
                 inputStream.c_str());
                 continue;
             }
-            neb::CJsonObject oJson(inputStream);
-            std::string strTraversingKey;
-            std::string strTraversingValue;
-            while(oJson.GetKey(strTraversingKey))
-            {
-                if (strTraversingKey == "opts")
-                {
-                    oJson.Get(strTraversingKey, strTraversingValue);
-                    break;
-                }
-            }
-            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broken-list") == std::string::npos) {
-                dataProducer->pushMessage(inputStream, "");
-                continue;
-            }
-            string topic;
-            string brokerlist;
-            std::vector<std::string> tokens;
-            bool isSpecal = false;
-            start = steady_clock::now();
-            split(strTraversingValue, ';', tokens);         
-            for (int i = 0; i < tokens.size(); ++i) {
-                // std::cout << "tokens_" << i  << " " << tokens[i] << std::endl;
-                std::vector<std::string> token_list;
-                split(tokens[i], ':', token_list);
-                if (token_list.size() < 2) continue;
-                if (token_list[0] == "topic") {
-                    topic = token_list[1];
-                }
-                if (token_list.size() < 3) continue;
-                if (token_list[0] == "broken-list") {
-                    brokerlist = token_list[1] + ":" + token_list[2];
-                }
-                if (!topic.empty() && !brokerlist.empty()) {
-                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
-                    
-                    if ((specialClinet.find(topic)) == specialClinet.end())
-                    {
-                        KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
-                        specialClinet[topic] = producer;
-                        producer->pushMessage(inputStream, "");
-                    }
-                    else
-                    {
-                        specialClinet[topic]->pushMessage(inputStream, "");
-                    }
-                    isSpecal = true;
-                    break;
-                }
-            }
-            if (isSpecal) {
-                continue;
-            }
             dataProducer->pushMessage(inputStream, "");
         }
         else if ((pos = inputStream.find("output\tscribe\tcommon_spider_log")) != std::string::npos) {
@@ -181,15 +117,9 @@ int main()
 
     }
 
-    // auto end = steady_clock::now();
-    // auto duration = duration_cast<microseconds>(end - start);
-    // cout <<  "reg1:"  << double(duration.count()) * microseconds::period::num / microseconds::period::den << "s" << endl;
     RdKafka::wait_destroyed(5000);
     delete dataProducer;
     delete logProducer;
-    for (const auto element : specialClinet)
-    {
-        delete element.second;
-    }
+
     return 0;
 }
