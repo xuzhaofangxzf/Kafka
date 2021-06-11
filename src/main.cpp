@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 #include <signal.h>
-// #include <regex>
 #include <sstream>
 #include <map>
 #include <string.h>
@@ -14,10 +13,8 @@ using namespace std;
 using namespace chrono;
 #define DEFALUT_LOG "../log/"
 
-// map<string,string> defaultKafka = {
-//     {"common-spider-data", "10.173.194.22:39092"},
-//     {"common-spider-epoch","10.173.194.22:39092"}};
-map<string, KafkaProducer*> specialClinet; //<topic, KafkaProducer>
+
+map<string, KafkaProducer*> KafkaClients; //<topic, KafkaProducer>
 bool g_isStop = false;
 
 void sigStop(int signo)
@@ -25,8 +22,7 @@ void sigStop(int signo)
     LOG_ERROR("receive signal %d, exit !", signo);
     g_isStop = true;
 }
-#if 0
-std::string getKeyValue(const std::string &strIn, const char delim, int loc = 1)
+std::string getKafkaInfo(const std::string &strIn, const char delim, int loc = 3)
 {
     if (strIn.empty())
     {
@@ -46,7 +42,7 @@ std::string getKeyValue(const std::string &strIn, const char delim, int loc = 1)
     }
     return res;
 }
-#endif
+
 void split(const std::string& s, char delimiter, std::vector<std::string>& tokens)
 {
    std::string token;
@@ -67,19 +63,17 @@ int main()
     sa.sa_handler = sigStop;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
-    // regex topicPattern("\"opts\":.*topic:(.*?);");
-    // regex BrokerlistPattern("\"opts\":.*broker_list:(.*?);");
-    // regex topicPattern("topic:(.*?);");
-    // regex BrokerlistPattern("broker_list:(.*?);");
-    // smatch result;
-
+    std::string KafkaInfo;
+    std::string topic;
+    std::string broker_list;
+    std::vector<std::string> KafkaTokens;
 
     KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
-
-
+    KafkaClients["common_spider_data"] = dataProducer;
+    KafkaClients["common_spider_epoch"] = logProducer;
     size_t pos = 0;
-    auto start = steady_clock::now();
+    // auto start = steady_clock::now();
     while(!g_isStop && getline(std::cin, inputStream))
     {
         if (inputStream.empty())
@@ -95,10 +89,26 @@ int main()
             continue;
         }
 
-        if ((pos = inputStream.find("output\tscribe\tcommon_spider_data")) != std::string::npos) {
+        if ((pos = inputStream.find("output\tscribe")) != std::string::npos) {
+            std::string strTmp = inputStream.substr(pos); //获取从output\tscribe到最后的子串
+            KafkaInfo = getKafkaInfo(strTmp, '\t');
+            if(KafkaInfo == "")
+            {
+                continue;
+            }
+            split(KafkaInfo, '|', KafkaTokens);
+            if (KafkaTokens.size() < 2) {
+                continue;
+            }
+            topic = KafkaTokens[0];
+            broker_list = KafkaTokens[1];
+            LOG_INFO("file:%s\tline:%d\ttopic:%s\tbroker_list:%s", __FILE__, __LINE__, topic.c_str(), broker_list.c_str());
+            if (topic.empty() || broker_list.empty()) {
+                continue;
+            }
             try
             {
-                inputStream = inputStream.substr(pos + sizeof("output\tscribe\tcommon_spider_data\t") - 1);
+                inputStream = inputStream.substr(inputStream.find(KafkaInfo) + KafkaInfo.size());
             }
             catch(...)
             {
@@ -108,86 +118,26 @@ int main()
                 inputStream.c_str());
                 continue;
             }
-            neb::CJsonObject oJson(inputStream);
-            std::string strTraversingKey;
-            std::string strTraversingValue;
-            while(oJson.GetKey(strTraversingKey))
-            {
-                if (strTraversingKey == "opts")
-                {
-                    oJson.Get(strTraversingKey, strTraversingValue);
-                    break;
-                }
-            }
-            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broken-list") == std::string::npos) {
-                dataProducer->pushMessage(inputStream, "");
-                continue;
-            }
-            string topic;
-            string brokerlist;
-            std::vector<std::string> tokens;
-            bool isSpecal = false;
-            start = steady_clock::now();
-            split(strTraversingValue, ';', tokens);         
-            for (int i = 0; i < tokens.size(); ++i) {
-                // std::cout << "tokens_" << i  << " " << tokens[i] << std::endl;
-                std::vector<std::string> token_list;
-                split(tokens[i], ':', token_list);
-                if (token_list.size() < 2) continue;
-                if (token_list[0] == "topic") {
-                    topic = token_list[1];
-                }
-                if (token_list.size() < 3) continue;
-                if (token_list[0] == "broken-list") {
-                    brokerlist = token_list[1] + ":" + token_list[2];
-                }
-                if (!topic.empty() && !brokerlist.empty()) {
-                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
-                    
-                    if ((specialClinet.find(topic)) == specialClinet.end())
-                    {
-                        KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
-                        specialClinet[topic] = producer;
-                        producer->pushMessage(inputStream, "");
-                    }
-                    else
-                    {
-                        specialClinet[topic]->pushMessage(inputStream, "");
-                    }
-                    isSpecal = true;
-                    break;
-                }
-            }
-            if (isSpecal) {
-                continue;
-            }
-            dataProducer->pushMessage(inputStream, "");
-        }
-        else if ((pos = inputStream.find("output\tscribe\tcommon_spider_log")) != std::string::npos) {
-            try
-            {
-                inputStream = inputStream.substr(pos + sizeof("output\tscribe\tcommon_spider_log\t") - 1);
-            }
-            catch(...)
-            {
-                LOG_ERROR("file:%s\tline:%d\tinputdata error\t%s",
+            LOG_INFO("file:%s\tline:%d\tinputdata:\t%s",
                 __FILE__,
                 __LINE__,
                 inputStream.c_str());
+            if (KafkaClients.find(topic) != KafkaClients.end()) {
+                KafkaClients[topic]->pushMessage(inputStream, "");
                 continue;
             }
-            logProducer->pushMessage(inputStream, "");
+            KafkaProducer* Producer = new KafkaProducer(broker_list, topic, 0);
+            KafkaClients[topic] = Producer;
+            Producer->pushMessage(inputStream, "");
         }
-
     }
-
     // auto end = steady_clock::now();
     // auto duration = duration_cast<microseconds>(end - start);
     // cout <<  "reg1:"  << double(duration.count()) * microseconds::period::num / microseconds::period::den << "s" << endl;
     RdKafka::wait_destroyed(5000);
-    delete dataProducer;
-    delete logProducer;
-    for (const auto element : specialClinet)
+    // delete dataProducer;
+    // delete logProducer;
+    for (const auto element : KafkaClients)
     {
         delete element.second;
     }
