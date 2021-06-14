@@ -22,6 +22,53 @@ void sigStop(int signo)
     LOG_ERROR("receive signal %d, exit !", signo);
     g_isStop = true;
 }
+std::string getKafkaInfo(std::string& str, const std::string defstr = "\t", int loc = 3)
+{
+    std::string res;
+    if (str.empty()) return res;
+    std::size_t begpos = 0 ;
+    std::size_t endpos = 0 ;
+    begpos = str.find_first_not_of(defstr);
+    while (begpos != std::string::npos)
+    {
+        endpos = str.find_first_of(defstr, begpos);
+        if (endpos == std::string::npos)
+        {
+            endpos = str.size();
+        }
+        std::string ssubstr = str.substr(begpos, endpos - begpos);
+        loc--;
+        if (loc <= 0) {
+            res = ssubstr;
+            return res;
+        }
+        begpos = str.find_first_not_of(defstr, endpos + 1);
+    }
+    return res;
+}
+
+std::size_t split(std::string& str, std::vector<std::string> &tokerns, const std::string defstr = "|")
+{
+    tokerns.clear();
+    std::size_t size = 0;
+    std::size_t begpos = 0 ;
+    std::size_t endpos = 0 ;
+    begpos = str.find_first_not_of(defstr);
+    while (begpos != std::string::npos)
+    {
+        size++;
+        endpos = str.find_first_of(defstr, begpos);
+        if (endpos == std::string::npos)
+        {
+            endpos = str.size();
+        }
+        std::string ssubstr = str.substr(begpos, endpos -begpos);
+        tokerns.push_back(ssubstr);    //将分割的字符串存入容器当中
+        begpos = str.find_first_not_of(defstr, endpos+1);
+    }
+    return size;
+}
+#if 0
 std::string getKafkaInfo(const std::string &strIn, const char delim, int loc = 3)
 {
     if (strIn.empty())
@@ -53,7 +100,7 @@ void split(const std::string& s, char delimiter, std::vector<std::string>& token
    }
    return;
 }
-
+#endif
 int main()
 {
     LOG_INIT(DEFALUT_LOG, "kafka", INFO);
@@ -64,14 +111,13 @@ int main()
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
     std::string KafkaInfo;
-    std::string topic;
-    std::string broker_list;
-    std::vector<std::string> KafkaTokens;
+    //std::string topic;
+    //std::string broker_list;
 
     KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
-    KafkaClients["common_spider_data"] = dataProducer;
-    KafkaClients["common_spider_epoch"] = logProducer;
+    KafkaClients["common-spider-data"] = dataProducer;
+    KafkaClients["common-spider-epoch"] = logProducer;
     size_t pos = 0;
     // auto start = steady_clock::now();
     while(!g_isStop && getline(std::cin, inputStream))
@@ -91,24 +137,30 @@ int main()
 
         if ((pos = inputStream.find("output\tscribe")) != std::string::npos) {
             std::string strTmp = inputStream.substr(pos); //获取从output\tscribe到最后的子串
-            KafkaInfo = getKafkaInfo(strTmp, '\t');
+            KafkaInfo = getKafkaInfo(strTmp, "\t");
             if(KafkaInfo == "")
             {
                 continue;
             }
-            split(KafkaInfo, '|', KafkaTokens);
+            
+            std::vector<std::string> KafkaTokens;
+            split(KafkaInfo, KafkaTokens, "|");
             if (KafkaTokens.size() < 2) {
                 continue;
             }
-            topic = KafkaTokens[0];
-            broker_list = KafkaTokens[1];
+            LOG_INFO("file:%s\tline:%d\tinputdata before:%s",
+                __FILE__,
+                __LINE__,
+                inputStream.c_str());
+            std::string topic = KafkaTokens[0];
+            std::string broker_list = KafkaTokens[1];
             LOG_INFO("file:%s\tline:%d\ttopic:%s\tbroker_list:%s", __FILE__, __LINE__, topic.c_str(), broker_list.c_str());
             if (topic.empty() || broker_list.empty()) {
                 continue;
             }
             try
             {
-                inputStream = inputStream.substr(inputStream.find(KafkaInfo) + KafkaInfo.size());
+                inputStream = inputStream.substr(inputStream.find(KafkaInfo) + KafkaInfo.size() + sizeof('\t'));
             }
             catch(...)
             {
@@ -118,7 +170,7 @@ int main()
                 inputStream.c_str());
                 continue;
             }
-            LOG_INFO("file:%s\tline:%d\tinputdata:\t%s",
+            LOG_INFO("file:%s\tline:%d\tinputdata after:%s",
                 __FILE__,
                 __LINE__,
                 inputStream.c_str());

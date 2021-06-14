@@ -9,7 +9,7 @@
 
 #define MEM_USE_LIMIT (3u * 1024 * 1024 * 1024)//3GB
 #define LOG_USE_LIMIT (1u * 1024 * 1024 * 1024)//1GB
-#define LOG_LEN_LIMIT (4 * 1024)//4K
+#define LOG_LEN_LIMIT (1 * 1024 * 1024)//4K
 #define RELOG_THRESOLD 5
 #define BUFF_WAIT_TIME 1
 
