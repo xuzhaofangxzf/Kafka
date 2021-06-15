@@ -141,22 +141,22 @@ int main()
                 if (token_list[0] == "broken-list") {
                     brokerlist = token_list[1] + ":" + token_list[2];
                 }
-                if (!topic.empty() && !brokerlist.empty()) {
-                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
-                    
-                    if ((specialClinet.find(topic)) == specialClinet.end())
-                    {
-                        KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
-                        specialClinet[topic] = producer;
-                        producer->pushMessage(inputStream, "");
-                    }
-                    else
-                    {
-                        specialClinet[topic]->pushMessage(inputStream, "");
-                    }
-                    isSpecal = true;
-                    break;
+            }
+            if (!topic.empty() && !brokerlist.empty()) {
+                // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
+                
+                if ((specialClinet.find(topic)) == specialClinet.end())
+                {
+                    KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
+                    specialClinet[topic] = producer;
+                    producer->pushMessage(inputStream, "");
                 }
+                else
+                {
+                    specialClinet[topic]->pushMessage(inputStream, "");
+                }
+                isSpecal = true;
+                break;
             }
             if (isSpecal) {
                 continue;
