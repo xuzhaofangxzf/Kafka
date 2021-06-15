@@ -74,9 +74,9 @@ int main()
     // smatch result;
 
 
-    KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
+    KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "spider_mobile_data", 0);
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
-
+    //KafkaProducer* MobledataProducer = new KafkaProducer("10.173.194.22:39092", "spider_mobile_data", 0);
 
     size_t pos = 0;
     auto start = steady_clock::now();
@@ -99,6 +99,74 @@ int main()
             try
             {
                 inputStream = inputStream.substr(pos + sizeof("output\tscribe\tcommon_spider_data\t") - 1);
+            }
+            catch(...)
+            {
+                LOG_ERROR("file:%s\tline:%d\tinputdata error\t%s",
+                __FILE__,
+                __LINE__,
+                inputStream.c_str());
+                continue;
+            }
+            neb::CJsonObject oJson(inputStream);
+            std::string strTraversingKey;
+            std::string strTraversingValue;
+            while(oJson.GetKey(strTraversingKey))
+            {
+                if (strTraversingKey == "opts")
+                {
+                    oJson.Get(strTraversingKey, strTraversingValue);
+                    break;
+                }
+            }
+            if (strTraversingValue.empty() || strTraversingValue.find("topic") == std::string::npos || strTraversingValue.find("broken-list") == std::string::npos) {
+                dataProducer->pushMessage(inputStream, "");
+                continue;
+            }
+            string topic;
+            string brokerlist;
+            std::vector<std::string> tokens;
+            bool isSpecal = false;
+            start = steady_clock::now();
+            split(strTraversingValue, ';', tokens);         
+            for (int i = 0; i < tokens.size(); ++i) {
+                // std::cout << "tokens_" << i  << " " << tokens[i] << std::endl;
+                std::vector<std::string> token_list;
+                split(tokens[i], ':', token_list);
+                if (token_list.size() < 2) continue;
+                if (token_list[0] == "topic") {
+                    topic = token_list[1];
+                }
+                if (token_list.size() < 3) continue;
+                if (token_list[0] == "broken-list") {
+                    brokerlist = token_list[1] + ":" + token_list[2];
+                }
+                if (!topic.empty() && !brokerlist.empty()) {
+                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
+                    
+                    if ((specialClinet.find(topic)) == specialClinet.end())
+                    {
+                        KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
+                        specialClinet[topic] = producer;
+                        producer->pushMessage(inputStream, "");
+                    }
+                    else
+                    {
+                        specialClinet[topic]->pushMessage(inputStream, "");
+                    }
+                    isSpecal = true;
+                    break;
+                }
+            }
+            if (isSpecal) {
+                continue;
+            }
+            dataProducer->pushMessage(inputStream, "");
+        }
+        else if ((pos = inputStream.find("output\tscribe\tqss.zzzc-zlib-spider-deadlink-recheck-debug")) != std::string::npos) {
+            try
+            {
+                inputStream = inputStream.substr(pos + sizeof("output\tscribe\tqss.zzzc-zlib-spider-deadlink-recheck-debug\t") - 1);
             }
             catch(...)
             {
