@@ -140,21 +140,29 @@ int main()
             KafkaInfo = getKafkaInfo(strTmp, "\t");
             if(KafkaInfo == "")
             {
+                LOG_ERROR("file:%s\tline:%d\tgetKafkaInfo error! inputdata:%s",
+                    __FILE__,
+                    __LINE__,
+                    inputStream.c_str());
                 continue;
             }
             
             std::vector<std::string> KafkaTokens;
             split(KafkaInfo, KafkaTokens, "|");
             if (KafkaTokens.size() < 2) {
+                LOG_ERROR("file:%s\tline:%d\tsplit error\tinputdata:%s",
+                    __FILE__,
+                    __LINE__,
+                    inputStream.c_str());
                 continue;
             }
-            LOG_INFO("file:%s\tline:%d\tinputdata before:%s",
-                __FILE__,
-                __LINE__,
-                inputStream.c_str());
+            // LOG_INFO("file:%s\tline:%d\tinputdata before:%s",
+            //     __FILE__,
+            //     __LINE__,
+            //     inputStream.c_str());
             std::string topic = KafkaTokens[0];
             std::string broker_list = KafkaTokens[1];
-            LOG_INFO("file:%s\tline:%d\ttopic:%s\tbroker_list:%s", __FILE__, __LINE__, topic.c_str(), broker_list.c_str());
+            printf("file:%s\tline:%d\ttopic:%s\tbroker_list:%s\n", __FILE__, __LINE__, topic.c_str(), broker_list.c_str());
             if (topic.empty() || broker_list.empty()) {
                 continue;
             }
@@ -170,10 +178,10 @@ int main()
                 inputStream.c_str());
                 continue;
             }
-            LOG_INFO("file:%s\tline:%d\tinputdata after:%s",
-                __FILE__,
-                __LINE__,
-                inputStream.c_str());
+            // LOG_INFO("file:%s\tline:%d\tinputdata after:%s",
+            //     __FILE__,
+            //     __LINE__,
+            //     inputStream.c_str());
             if (KafkaClients.find(topic) != KafkaClients.end()) {
                 KafkaClients[topic]->pushMessage(inputStream, "");
                 continue;
