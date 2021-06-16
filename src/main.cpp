@@ -115,9 +115,13 @@ int main()
     //std::string broker_list;
 
     KafkaProducer* dataProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-data", 0);
+    KafkaProducer* commondataProducer = new KafkaProducer("10.173.194.22:39092", "spider_common_crawler_k8s_data", 0);
+
     KafkaProducer* logProducer = new KafkaProducer("10.173.194.22:39092", "common-spider-epoch", 0);
     KafkaClients["common-spider-data"] = dataProducer;
     KafkaClients["common-spider-epoch"] = logProducer;
+    KafkaClients["spider_common_crawler_k8s_data"] = commondataProducer;
+
     size_t pos = 0;
     // auto start = steady_clock::now();
     while(!g_isStop && getline(std::cin, inputStream))
@@ -144,6 +148,23 @@ int main()
                     __FILE__,
                     __LINE__,
                     inputStream.c_str());
+                continue;
+            }
+
+            if (KafkaInfo == "spider-tfboys-result") {
+                try
+                {
+                    inputStream = inputStream.substr(inputStream.find(KafkaInfo) + KafkaInfo.size() + sizeof('\t'));
+                }
+                catch(...)
+                {
+                    LOG_ERROR("file:%s\tline:%d\tinputdata error\t%s",
+                    __FILE__,
+                    __LINE__,
+                    inputStream.c_str());
+                    continue;
+                }
+                commondataProducer->pushMessage(inputStream, "");
                 continue;
             }
             
