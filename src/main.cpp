@@ -126,8 +126,7 @@ int main()
             string topic;
             string brokerlist;
             std::vector<std::string> tokens;
-            bool isSpecal = false;
-            start = steady_clock::now();
+            // start = steady_clock::now();
             split(strTraversingValue, ';', tokens);         
             for (int i = 0; i < tokens.size(); ++i) {
                 // std::cout << "tokens_" << i  << " " << tokens[i] << std::endl;
@@ -155,12 +154,9 @@ int main()
                 {
                     specialClinet[topic]->pushMessage(inputStream, "");
                 }
-                isSpecal = true;
-                break;
-            }
-            if (isSpecal) {
                 continue;
             }
+
             dataProducer->pushMessage(inputStream, "");
         }
         else if ((pos = inputStream.find("output\tscribe\tqss.zzzc-zlib-spider-deadlink-recheck-debug")) != std::string::npos) {
@@ -194,7 +190,7 @@ int main()
             string topic;
             string brokerlist;
             std::vector<std::string> tokens;
-            bool isSpecal = false;
+            // bool isSpecal = false;
             start = steady_clock::now();
             split(strTraversingValue, ';', tokens);         
             for (int i = 0; i < tokens.size(); ++i) {
@@ -209,26 +205,24 @@ int main()
                 if (token_list[0] == "broken-list") {
                     brokerlist = token_list[1] + ":" + token_list[2];
                 }
-                if (!topic.empty() && !brokerlist.empty()) {
-                    // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
-                    
-                    if ((specialClinet.find(topic)) == specialClinet.end())
-                    {
-                        KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
-                        specialClinet[topic] = producer;
-                        producer->pushMessage(inputStream, "");
-                    }
-                    else
-                    {
-                        specialClinet[topic]->pushMessage(inputStream, "");
-                    }
-                    isSpecal = true;
-                    break;
-                }
             }
-            if (isSpecal) {
+            if (!topic.empty() && !brokerlist.empty()) {
+                // std::cout << "topic:" << topic  << "\t" << "broker_list:" << brokerlist << std::endl;
+                
+                if ((specialClinet.find(topic)) == specialClinet.end())
+                {
+                    KafkaProducer* producer = new KafkaProducer(brokerlist, topic, 0);
+                    specialClinet[topic] = producer;
+                    producer->pushMessage(inputStream, "");
+                }
+                else
+                {
+                    specialClinet[topic]->pushMessage(inputStream, "");
+                }
+                // isSpecal = true;
                 continue;
             }
+
             dataProducer->pushMessage(inputStream, "");
         }
         else if ((pos = inputStream.find("output\tscribe\tcommon_spider_log")) != std::string::npos) {
